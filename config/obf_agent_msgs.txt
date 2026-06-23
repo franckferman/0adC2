@@ -1,0 +1,31 @@
+# obf_agent_msgs.txt — Fake chat messages sent by the agent
+# Encoded by gen_agent_str.py → obf_agent_strings.h
+# None of these strings appear in plaintext in the binary.
+# Refresh before each operation if needed.
+
+# Short — natural variety
+anyone here?
+gl hf
+gg
+which map?
+how many players?
+is this game starting?
+hi
+waiting..
+k
+nice
+ok
+brb
+back
+need one more?
+what civ?
+any spectators?
+# Long — normalises NMT_CHAT packet size distribution
+# so that encrypted C2 RSP (~400 bytes) are not statistically isolated.
+hey guys im back, sorry had to step away for a bit, what did I miss?
+what strategy are you planning this game? I usually go rushers then expand
+this map is interesting, never played it before. anyone have tips for the north side?
+gg last game btw, those cavalry raids were really well timed, caught me completely off guard
+anyone using the loom upgrade early? I always forget to research it and it costs me late game
+is the server lagging for anyone else or is it just me, my ping is all over the place
+I think we need one more player before we can start, going to be an uneven teams otherwise

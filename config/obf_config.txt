@@ -1,0 +1,13 @@
+# obf_config.txt — Stager configuration
+# Edit before each operation / each build
+# STAGE_HOST / STAGE_PORT  : staging server (does not go through 0ad)
+# AGENT_SRV_HOST / PORT    : 0ad server the agent will connect to
+# AGENT_PLAYER             : 0ad player name (cover identity)
+# AGENT_KEY                : shared C2 key
+
+STAGE_HOST=127.0.0.1
+STAGE_PORT=20596
+AGENT_SRV_HOST=127.0.0.1
+AGENT_SRV_PORT=20595
+AGENT_PLAYER=RuntimeBroker
+AGENT_KEY=0adC2DefaultKey
