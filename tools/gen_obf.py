@@ -84,13 +84,10 @@ Result: every ``make stager`` produces a statically different binary
 Usage: python3 gen_obf.py [config=obf_config.txt] [output=obf_strings.h]
 """
 
-import sys
+import argparse
 import os
-import random
-
-# ── Command-line arguments (with defaults) ─────────────────────────────────────
-CONFIG_FILE = sys.argv[1] if len(sys.argv) > 1 else "obf_config.txt"   # deployment config
-OUTPUT_FILE = sys.argv[2] if len(sys.argv) > 2 else "obf_strings.h"    # generated C header
+import secrets
+import sys
 
 # ── List of required keys ──────────────────────────────────────────────────────
 # The script verifies that all of these are present in the config before
@@ -134,6 +131,28 @@ def rolling_xor_encode(data: bytes, seed: int) -> list[int]:
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Build-time XOR string obfuscation generator for the stager.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Reads a key=value config (STAGE_HOST, STAGE_PORT, AGENT_SRV_HOST,\n"
+            "AGENT_SRV_PORT, AGENT_PLAYER, AGENT_KEY) and writes a C header with\n"
+            "all values rolling-XOR encoded so they never appear in plaintext.\n"
+            "Called by the Makefile; can also be run standalone."
+        ),
+    )
+    parser.add_argument(
+        "config", nargs="?", default="obf_config.txt", metavar="config.txt",
+        help="deployment config file (default: obf_config.txt)",
+    )
+    parser.add_argument(
+        "output", nargs="?", default="obf_strings.h", metavar="output.h",
+        help="output C header path (default: obf_strings.h)",
+    )
+    a = parser.parse_args()
+    CONFIG_FILE = a.config
+    OUTPUT_FILE = a.output
+
     # ── Read config ────────────────────────────────────────────────────────────
     config = {}
     if not os.path.exists(CONFIG_FILE):
@@ -150,7 +169,7 @@ def main():
         }
     else:
         # Parse the config file: key=value pairs, one per line.
-        with open(CONFIG_FILE) as f:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"): continue   # skip blank lines and comments
@@ -166,7 +185,7 @@ def main():
     # ── Pick a random per-build seed ───────────────────────────────────────────
     # Avoid 0: XOR with 0 is the identity (b ^ 0 == b), which would leave the
     # first byte of every encoded string as plaintext.
-    seed = random.randint(1, 255)
+    seed = secrets.randbelow(255) + 1   # [1, 255] — cryptographically random
     print(f"[gen_obf] seed=0x{seed:02X}  output={OUTPUT_FILE}")
 
     # ── Start building the header lines ───────────────────────────────────────
@@ -232,7 +251,7 @@ def main():
         lines.append("")   # blank line between entries for readability
 
     # ── Write the generated header ─────────────────────────────────────────────
-    with open(OUTPUT_FILE, "w") as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
     # Count non-empty lines as a quick sanity check printed to the console.

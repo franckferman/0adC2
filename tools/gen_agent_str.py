@@ -61,13 +61,10 @@ the source code is identical.
 
 Usage: python3 gen_agent_str.py [msgs_file] [output_header]
 """
-import sys, os, random
-
-# ── Command-line arguments (with defaults) ─────────────────────────────────────
-# If the Makefile does not pass explicit paths, fall back to the conventional
-# filenames used in the project layout.
-MSGS_FILE   = sys.argv[1] if len(sys.argv) > 1 else "obf_agent_msgs.txt"   # input: one string per line
-OUTPUT_FILE = sys.argv[2] if len(sys.argv) > 2 else "obf_agent_strings.h"  # output: C header
+import argparse
+import os
+import secrets
+import sys
 
 
 def rolling_xor_encode(data: bytes, seed: int) -> list[int]:
@@ -101,6 +98,28 @@ def rolling_xor_encode(data: bytes, seed: int) -> list[int]:
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Build-time rolling-XOR obfuscation generator for the agent's string table.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Reads a plain-text file with one string per line (blank lines and\n"
+            "lines starting with '#' are skipped), encodes every string with a\n"
+            "random rolling-XOR key, and writes a C header containing the encoded\n"
+            "blob plus a decode macro. Called by the Makefile."
+        ),
+    )
+    parser.add_argument(
+        "msgs", nargs="?", default="obf_agent_msgs.txt", metavar="msgs.txt",
+        help="input file: one plaintext string per line (default: obf_agent_msgs.txt)",
+    )
+    parser.add_argument(
+        "output", nargs="?", default="obf_agent_strings.h", metavar="output.h",
+        help="output C header path (default: obf_agent_strings.h)",
+    )
+    a = parser.parse_args()
+    MSGS_FILE   = a.msgs
+    OUTPUT_FILE = a.output
+
     # ── Read the message list ──────────────────────────────────────────────────
     if not os.path.exists(MSGS_FILE):
         print(f"[gen_agent_str] '{MSGS_FILE}' not found", file=sys.stderr)
@@ -108,7 +127,9 @@ def main():
 
     with open(MSGS_FILE, encoding="utf-8") as f:
         # Strip whitespace, skip blank lines and comment lines (starting with #).
-        msgs = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+        # l.strip() is used for the startswith check so leading spaces before '#'
+        # are handled correctly (a line "  # comment" must also be skipped).
+        msgs = [l.strip() for l in f if l.strip() and not l.strip().startswith("#")]
 
     if not msgs:
         print("[gen_agent_str] no messages found", file=sys.stderr)
@@ -117,7 +138,7 @@ def main():
     # ── Pick a random seed ─────────────────────────────────────────────────────
     # 0 is excluded: XOR with 0 is a no-op (b ^ 0 == b), which would leave the
     # first byte of every string in plaintext.
-    seed = random.randint(1, 255)
+    seed = secrets.randbelow(255) + 1   # [1, 255] — cryptographically random
     print(f"[gen_agent_str] seed=0x{seed:02X}  {len(msgs)} messages  output={OUTPUT_FILE}")
 
     # ── Encode all messages and record their positions in the blob ─────────────

